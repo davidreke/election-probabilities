@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Election Probabilities — UI Mockup</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.x/dist/tabler-icons.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* ── Reset & base ─────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #f5f5f3;
+  --surface: #ffffff;
+  --surface2: #f1efe8;
+  --border: rgba(0,0,0,0.12);
+  --border2: rgba(0,0,0,0.22);
+  --text: #1a1a18;
+  --text2: #5f5e5a;
+  --text3: #888780;
+  --dem: #378ADD;
+  --dem-dark: #185FA5;
+  --dem-bg: #E6F1FB;
+  --rep: #D85A30;
+  --rep-dark: #993C1D;
+  --rep-bg: #FAECE7;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1a18; --surface: #232321; --surface2: #2c2c2a;
+    --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.2);
+    --text: #f0ede8; --text2: #b4b2a9; --text3: #888780;
+  }
+}
+body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+button { font-family: inherit; cursor: pointer; }
+a { color: inherit; }
+
+/* ── Layout shells ─────────────────────────────────── */
+.app { max-width: 1200px; margin: 0 auto; }
+
+/* ── Topbar ─────────────────────────────────── */
+.topbar {
+  background: var(--surface); border-bottom: 0.5px solid var(--border);
+  padding: 12px 20px; display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+}
+.logo { font-size: 15px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+.logo i { font-size: 18px; color: var(--dem-dark); }
+.nav-tabs { display: flex; gap: 4px; }
+.nav-tab {
+  padding: 6px 14px; border-radius: var(--radius-md); font-size: 13px;
+  border: 0.5px solid transparent; color: var(--text2); background: none;
+}
+.nav-tab.active { background: var(--dem-bg); color: var(--dem-dark); border-color: rgba(24,95,165,0.3); }
+.topbar-meta { font-size: 12px; color: var(--text3); display: flex; align-items: center; gap: 5px; }
+
+/* ── Filters ─────────────────────────────────── */
+.filters {
+  background: var(--surface); border-bottom: 0.5px solid var(--border);
+  padding: 10px 20px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.filter-label { font-size: 12px; color: var(--text2); }
+.chip {
+  display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px;
+  border-radius: 999px; font-size: 12px; border: 0.5px solid var(--border2);
+  background: var(--surface); color: var(--text2); cursor: pointer;
+}
+.chip.active { background: var(--surface2); color: var(--text); border-color: var(--border2); font-weight: 500; }
+.search-box {
+  margin-left: auto; display: flex; align-items: center; gap: 6px;
+  border: 0.5px solid var(--border2); border-radius: var(--radius-md);
+  padding: 5px 10px; font-size: 13px; color: var(--text2); background: var(--surface2);
+}
+
+/* ── Map panel (desktop only) ─────────────────── */
+/* NOTE FOR CODE AGENT: hide .map-panel on screens < 900px */
+.map-panel {
+  background: var(--surface); border-bottom: 0.5px solid var(--border); padding: 14px 20px;
+}
+.map-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.map-title { font-size: 12px; font-weight: 500; color: var(--text2); display: flex; align-items: center; gap: 6px; }
+.map-legend { display: flex; align-items: center; gap: 14px; font-size: 11px; color: var(--text2); }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+.state-banner { display: none; align-items: center; gap: 8px; font-size: 13px; }
+.state-banner.visible { display: flex; }
+.clear-btn { font-size: 11px; color: var(--text3); cursor: pointer; display: flex; align-items: center; gap: 3px; border: none; background: none; color: var(--text3); }
+svg.us-map { width: 100%; height: auto; }
+svg.us-map path { stroke: var(--surface); stroke-width: 1; cursor: pointer; transition: opacity 0.15s; }
+svg.us-map path:hover { opacity: 0.75; }
+svg.us-map path.selected { stroke: var(--text); stroke-width: 2; }
+
+/* ── Main grid ────────────────────────────────── */
+.main { padding: 16px 20px; display: grid; grid-template-columns: 200px 1fr; gap: 16px; }
+/* NOTE FOR CODE AGENT: on mobile, grid-template-columns: 1fr */
+
+/* ── Sidebar ────────────────────────────────── */
+.sidebar { display: flex; flex-direction: column; gap: 12px; }
+.sidebar-card {
+  background: var(--surface); border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg); padding: 14px;
+}
+.sidebar-title {
+  font-size: 11px; font-weight: 500; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--text3); margin-bottom: 10px;
+}
+.stat-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 5px 0; border-bottom: 0.5px solid var(--border); font-size: 13px;
+}
+.stat-row:last-child { border-bottom: none; }
+.stat-name { color: var(--text2); }
+.stat-val { font-weight: 500; }
+.stat-val.dem { color: var(--dem-dark); }
+.stat-val.rep { color: var(--rep-dark); }
+
+/* ── Content area ─────────────────────────────── */
+.content { display: flex; flex-direction: column; gap: 10px; }
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
+.section-title { font-size: 13px; font-weight: 500; color: var(--text2); }
+.sort-btn { font-size: 12px; color: var(--text3); display: flex; align-items: center; gap: 4px; border: none; background: none; color: var(--text3); }
+
+/* ── Race cards ──────────────────────────────── */
+.race-card {
+  background: var(--surface); border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg); padding: 12px 14px; cursor: pointer; transition: border-color 0.15s;
+}
+.race-card:hover { border-color: var(--border2); }
+.race-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
+.race-title { font-size: 14px; font-weight: 500; }
+.race-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.race-badges { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+.race-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 10px; padding-top: 8px; border-top: 0.5px solid var(--border);
+}
+.updated { font-size: 11px; color: var(--text3); display: flex; align-items: center; gap: 4px; }
+.trend { font-size: 11px; display: flex; align-items: center; gap: 3px; }
+.trend.up { color: #3B6D11; }
+.trend.down { color: var(--rep-dark); }
+.view-btn { font-size: 12px; color: var(--dem-dark); display: flex; align-items: center; gap: 3px; border: none; background: none; }
+
+/* ── Badges ──────────────────────────────────── */
+.badge { font-size: 11px; padding: 3px 8px; border-radius: 999px; font-weight: 500; }
+.badge-senate { background: #FAEEDA; color: #854F0B; }
+.badge-gov    { background: #EEEDFE; color: #3C3489; }
+.badge-house  { background: var(--rep-bg); color: var(--rep-dark); }
+.badge-general { background: #EAF3DE; color: #3B6D11; }
+.badge-primary-d { background: var(--dem-bg); color: var(--dem-dark); }
+.badge-primary-r { background: var(--rep-bg); color: var(--rep-dark); }
+.badge-toss { background: var(--surface2); color: var(--text2); border: 0.5px solid var(--border2); }
+.outcome-badge { font-size: 11px; padding: 3px 8px; border-radius: 999px; font-weight: 500; }
+.outcome-dem { background: var(--dem-bg); color: var(--dem-dark); }
+.outcome-rep { background: var(--rep-bg); color: var(--rep-dark); }
+
+/* ── Probability bars (general) ──────────────── */
+.prob-bar-wrap { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+.prob-bar { flex: 1; height: 8px; border-radius: 999px; background: var(--surface2); overflow: hidden; }
+.prob-pct { font-size: 13px; font-weight: 500; min-width: 36px; text-align: right; }
+.prob-pct.dem { color: var(--dem-dark); }
+.prob-pct.rep { color: var(--rep-dark); }
+
+/* ── Pie chart layout (primaries) ────────────── */
+/*
+ * NOTE FOR CODE AGENT:
+ * Primary races use a doughnut chart (Chart.js) instead of bars.
+ * This handles N candidates gracefully. Use blue shades for D primaries,
+ * red/coral shades for R primaries. Shade darkest = highest probability.
+ */
+.pie-row { display: flex; align-items: center; gap: 16px; }
+.pie-legend { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.pie-legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.pie-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.pie-cand { flex: 1; }
+.pie-pct { font-weight: 500; color: var(--text2); min-width: 32px; text-align: right; }
+
+/* ── Tab system (page-level) ──────────────────── */
+.tab-content { display: none; flex-direction: column; gap: 10px; }
+.tab-content.active { display: flex; }
+
+/* ══════════════════════════════════════════════
+   DETAIL VIEW
+   Opened when user clicks a race card.
+   NOTE FOR CODE AGENT: implement as a route /races/:id
+   or a slide-in panel — your call based on framework.
+   ══════════════════════════════════════════════ */
+.detail-view { display: none; }
+.detail-view.active { display: block; }
+.list-view { display: block; }
+.list-view.hidden { display: none; }
+
+.detail-topbar {
+  background: var(--surface); border-bottom: 0.5px solid var(--border);
+  padding: 10px 16px; display: flex; align-items: center; gap: 10px;
+  position: sticky; top: 0; z-index: 100;
+}
+.back-btn { display: flex; align-items: center; gap: 5px; font-size: 13px; color: var(--text2); border: none; background: none; }
+.detail-body { display: grid; grid-template-columns: 280px 1fr; min-height: 520px; }
+/* NOTE FOR CODE AGENT: on mobile, grid-template-columns: 1fr (left panel stacks above right) */
+
+/* ── Detail left panel ───────────────────────── */
+.left-panel {
+  background: var(--surface); border-right: 0.5px solid var(--border);
+  padding: 16px; display: flex; flex-direction: column; gap: 16px;
+}
+.prob-summary { background: var(--surface2); border-radius: var(--radius-lg); padding: 14px; }
+.prob-summary-title {
+  font-size: 11px; font-weight: 500; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--text3); margin-bottom: 12px;
+}
+.candidate-block { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
+.candidate-block + .candidate-block { border-top: 0.5px solid var(--border); }
+.cand-name { font-size: 14px; font-weight: 500; }
+.cand-party { font-size: 11px; color: var(--text2); }
+.cand-prob { font-size: 26px; font-weight: 500; }
+.cand-prob.dem { color: var(--dem-dark); }
+.cand-prob.rep { color: var(--rep-dark); }
+.prob-bar-bicolor { display: flex; height: 10px; border-radius: 999px; overflow: hidden; margin: 10px 0 4px; }
+.prob-fill-dem { background: var(--dem); }
+.prob-fill-rep { background: var(--rep); }
+.prob-bar-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--text3); }
+.mini-section { border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 12px; background: var(--surface); }
+.mini-section-title {
+  font-size: 11px; font-weight: 500; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--text3); margin-bottom: 10px;
+}
+.model-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 0.5px solid var(--border); font-size: 13px; }
+.model-row:last-child { border-bottom: none; }
+.model-row-name { color: var(--text2); }
+.model-row-val { font-weight: 500; }
+.model-row-val.pos { color: #3B6D11; }
+.model-row-val.neg { color: var(--rep-dark); }
+.model-row-val.neutral { color: var(--text2); }
+
+/* ── Detail right panel ──────────────────────── */
+.right-panel { display: flex; flex-direction: column; background: var(--bg); }
+.chart-area { background: var(--surface); padding: 16px 16px 12px; border-bottom: 0.5px solid var(--border); }
+.chart-area-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.chart-area-title { font-size: 13px; font-weight: 500; color: var(--text2); }
+.time-btns { display: flex; gap: 4px; }
+.time-btn {
+  font-size: 11px; padding: 3px 8px; border-radius: var(--radius-md);
+  border: 0.5px solid var(--border2); color: var(--text2); background: none;
+}
+.time-btn.active { background: var(--surface2); color: var(--text); border-color: var(--border2); }
+.chart-legend { display: flex; gap: 16px; margin-top: 10px; flex-wrap: wrap; }
+.chart-legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); }
+.chart-legend-line { width: 20px; height: 2px; border-radius: 2px; }
+.chart-legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+.events-list { margin-top: 12px; border-top: 0.5px solid var(--border); padding-top: 10px; display: flex; flex-direction: column; gap: 5px; }
+.event-row { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; }
+.event-dot-sm { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 3px; }
+.event-date { color: var(--text3); min-width: 44px; }
+.event-desc { color: var(--text2); flex: 1; }
+.event-tag { font-size: 10px; padding: 1px 6px; border-radius: 999px; font-weight: 500; flex-shrink: 0; }
+.tag-poll    { background: var(--dem-bg); color: var(--dem-dark); }
+.tag-endorse { background: #EEEDFE; color: #3C3489; }
+.tag-fund    { background: #EAF3DE; color: #3B6D11; }
+
+/* ── Data tabs ───────────────────────────────── */
+/*
+ * NOTE FOR CODE AGENT:
+ * Tab visibility rules:
+ *   - "Party lean" tab: show only for GENERAL elections, hide for primaries
+ *   - All other tabs (Polls, Endorsements, Fundraising): show for both general and primary
+ */
+.data-tabs {
+  display: flex; border-bottom: 0.5px solid var(--border);
+  background: var(--surface); padding: 0 16px; gap: 0;
+}
+.data-tab {
+  font-size: 13px; padding: 10px 14px; color: var(--text2); cursor: pointer;
+  border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap;
+  background: none; border-top: none; border-left: none; border-right: none;
+}
+.data-tab.active { color: var(--dem-dark); border-bottom-color: var(--dem); font-weight: 500; }
+.data-panel { display: none; padding: 14px 16px; flex-direction: column; gap: 8px; background: var(--surface); }
+.data-panel.active { display: flex; }
+
+/* ── Data tables ─────────────────────────────── */
+table.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.data-table th {
+  font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text3); text-align: left; padding: 0 8px 8px 0; border-bottom: 0.5px solid var(--border);
+}
+table.data-table td { padding: 8px 8px 8px 0; border-bottom: 0.5px solid var(--border); vertical-align: middle; }
+table.data-table tr:last-child td { border-bottom: none; }
+.poll-grade { font-size: 11px; padding: 2px 6px; border-radius: var(--radius-md); font-weight: 500; }
+.grade-a { background: #EAF3DE; color: #3B6D11; }
+.grade-b { background: #FAEEDA; color: #854F0B; }
+.grade-c { background: var(--rep-bg); color: var(--rep-dark); }
+.spread-dem { color: var(--dem-dark); font-weight: 500; }
+.spread-rep { color: var(--rep-dark); font-weight: 500; }
+.weight-bar { height: 6px; border-radius: 999px; background: var(--surface2); overflow: hidden; width: 60px; }
+.weight-fill { height: 100%; background: var(--dem); border-radius: 999px; }
+.endorse-tier { font-size: 11px; padding: 2px 7px; border-radius: 999px; font-weight: 500; }
+.tier-nat   { background: #EEEDFE; color: #3C3489; }
+.tier-state { background: var(--dem-bg); color: var(--dem-dark); }
+.tier-local { background: var(--surface2); color: var(--text2); border: 0.5px solid var(--border2); }
+.fund-bar { height: 6px; border-radius: 999px; background: var(--surface2); overflow: hidden; width: 80px; }
+.fund-fill-dem { height: 100%; background: var(--dem); border-radius: 999px; }
+.fund-fill-rep { height: 100%; background: var(--rep); border-radius: 999px; }
+
+/* ── Party lean tab ──────────────────────────── */
+.lean-card {
+  border: 0.5px solid var(--border); border-radius: var(--radius-lg);
+  padding: 12px 14px; background: var(--surface); margin-bottom: 10px;
+}
+.lean-card-title { font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 8px; }
+.lean-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+.lean-bar { flex: 1; height: 8px; border-radius: 999px; background: var(--surface2); overflow: hidden; }
+.lean-note { font-size: 11px; color: var(--text3); margin-top: 6px; }
+
+/* ── Model decomposition tooltip ─────────────── */
+/*
+ * NOTE FOR CODE AGENT:
+ * Each factor row in the model decomposition is clickable.
+ * On click, show a tooltip/popover with a brief explanation of
+ * how that factor is calculated and what data feeds it.
+ * Implement as a floating tooltip positioned near the clicked element.
+ * Use position: absolute relative to a positioned ancestor — do NOT use position: fixed.
+ */
+.factor-row {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 5px;
+  cursor: pointer; border-radius: var(--radius-md); padding: 2px 4px;
+  transition: background 0.12s;
+}
+.factor-row:hover { background: var(--surface2); }
+.factor-label { font-size: 12px; min-width: 110px; }
+.factor-pct { font-size: 12px; font-weight: 500; min-width: 52px; text-align: right; }
+.tooltip-box {
+  display: none; position: absolute; z-index: 200;
+  background: var(--surface); border: 0.5px solid var(--border2);
+  border-radius: var(--radius-md); padding: 10px 12px; font-size: 12px;
+  color: var(--text2); max-width: 220px; box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  line-height: 1.5;
+}
+.tooltip-box.visible { display: block; }
+.tooltip-title { font-weight: 500; color: var(--text); margin-bottom: 4px; font-size: 12px; }
+
+/* ══════════════════════════════════════════════
+   ACCURACY DASHBOARD (fourth page)
+   NOTE FOR CODE AGENT:
+     - Filters recompute every stat, chart, and table client-side.
+     - Sample data is generated below (accRaces) — replace with an
+       API call to /api/accuracy?year=&state=&type=&office=
+     - Hide the global race filter bar and sidebar on this page
+       (handled via .main.full + #race-filters display toggle).
+   ══════════════════════════════════════════════ */
+.main.full { grid-template-columns: 1fr; }
+.main.full .sidebar { display: none; }
+.acc-filters {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  background: var(--surface); border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg); padding: 10px 14px;
+}
+.acc-select {
+  font-family: inherit; font-size: 12px; padding: 4px 10px;
+  border-radius: 999px; border: 0.5px solid var(--border2);
+  background: var(--surface); color: var(--text2); cursor: pointer;
+}
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+/* NOTE FOR CODE AGENT: on mobile, kpi-grid → repeat(2, 1fr); chart-grid → 1fr */
+.kpi-card {
+  background: var(--surface); border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg); padding: 14px;
+}
+.kpi-label {
+  font-size: 11px; font-weight: 500; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--text3); margin-bottom: 6px;
+  display: flex; align-items: center; gap: 5px;
+}
+.kpi-val { font-size: 26px; font-weight: 500; line-height: 1.2; }
+.kpi-val.good { color: #3B6D11; }
+.kpi-sub { font-size: 11px; color: var(--text3); margin-top: 3px; }
+.chart-card {
+  background: var(--surface); border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg); padding: 14px;
+}
+.chart-card-title { font-size: 13px; font-weight: 500; color: var(--text2); }
+.chart-card-sub { font-size: 11px; color: var(--text3); margin-top: 1px; margin-bottom: 10px; }
+.chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.acc-empty {
+  background: var(--surface); border: 0.5px dashed var(--border2);
+  border-radius: var(--radius-lg); padding: 28px; text-align: center;
+  color: var(--text3); font-size: 13px;
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ══════════════════════════════════════
+     LIST VIEW
+     ══════════════════════════════════════ -->
+<div class="list-view" id="list-view">
+
+  <div class="topbar">
+    <div class="logo"><i class="ti ti-chart-bar"></i> Election probabilities</div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="switchTab('ongoing', this)">Ongoing</button>
+      <button class="nav-tab" onclick="switchTab('past', this)">Past elections</button>
+      <button class="nav-tab" onclick="switchTab('accuracy', this)">Model accuracy</button>
+    </div>
+    <div class="topbar-meta"><i class="ti ti-refresh"></i> Updated May 30</div>
+  </div>
+
+  <div class="filters" id="race-filters">
+    <span class="filter-label">Type</span>
+    <span class="chip active">All</span>
+    <span class="chip"><i class="ti ti-building" style="font-size:12px"></i> Governor</span>
+    <span class="chip"><i class="ti ti-podium" style="font-size:12px"></i> Senate</span>
+    <span class="chip"><i class="ti ti-users" style="font-size:12px"></i> House</span>
+    <div style="width:1px;height:16px;background:var(--border);margin:0 2px;"></div>
+    <span class="filter-label">Election</span>
+    <span class="chip active">General</span>
+    <span class="chip">Primary</span>
+    <div class="search-box"><i class="ti ti-search" style="font-size:14px"></i><span>Search state, candidate…</span></div>
+  </div>
+
+  <!-- MAP PLACEHOLDER — to be implemented later with proper GeoJSON/TopoJSON rendering -->
+  <!-- NOTE FOR CODE AGENT: add a clickable US map here (desktop only, min-width: 900px).
+       Use a TopoJSON or GeoJSON source for accurate state shapes. Color states by projected lean.
+       Clicking a state filters the race list below. -->
+
+
+  <div class="main">
+    <div class="sidebar">
+      <div class="sidebar-card">
+        <div class="sidebar-title">Summary — 2026 cycle</div>
+        <div class="stat-row"><span class="stat-name">Races tracked</span><span class="stat-val">87</span></div>
+        <div class="stat-row"><span class="stat-name">Dem leads</span><span class="stat-val dem">34</span></div>
+        <div class="stat-row"><span class="stat-name">Rep leads</span><span class="stat-val rep">41</span></div>
+        <div class="stat-row"><span class="stat-name">Toss-ups</span><span class="stat-val">12</span></div>
+      </div>
+      <div class="sidebar-card">
+        <div class="sidebar-title">Senate balance (projected)</div>
+        <div style="margin:8px 0;">
+          <div style="display:flex;height:18px;border-radius:999px;overflow:hidden;">
+            <div style="width:47%;background:var(--dem)"></div>
+            <div style="width:53%;background:var(--rep)"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:12px;">
+            <span style="color:var(--dem-dark);font-weight:500;">D 47</span>
+            <span style="color:var(--text3);">50 needed</span>
+            <span style="color:var(--rep-dark);font-weight:500;">53 R</span>
+          </div>
+        </div>
+      </div>
+      <div class="sidebar-card">
+        <div class="sidebar-title">Competitive races</div>
+        <div class="stat-row"><span class="stat-name">D+5 or closer</span><span class="stat-val">23</span></div>
+        <div class="stat-row"><span class="stat-name">Flips possible</span><span class="stat-val">9</span></div>
+        <div class="stat-row"><span class="stat-name">Open seats</span><span class="stat-val">14</span></div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ONGOING TAB -->
+      <div id="ongoing-tab" class="tab-content active">
+        <div class="section-header">
+          <span class="section-title" id="ongoing-section-title">Competitive races (within 20 pts)</span>
+          <button class="sort-btn"><i class="ti ti-arrows-sort" style="font-size:13px"></i> Most competitive</button>
+        </div>
+
+        <!-- General election card -->
+        <div class="race-card" onclick="openDetail('pa-senate')">
+          <div class="race-header">
+            <div><div class="race-title">Pennsylvania Senate</div><div class="race-sub">Casey (D) vs. McCormick (R) · General</div></div>
+            <div class="race-badges"><span class="badge badge-senate">Senate</span><span class="badge badge-toss">Toss-up</span></div>
+          </div>
+          <div class="prob-bar-wrap">
+            <span style="font-size:12px;color:var(--dem-dark);min-width:110px;">Casey (D)</span>
+            <div class="prob-bar"><div style="height:100%;width:52%;background:var(--dem);border-radius:999px;"></div></div>
+            <span class="prob-pct dem">52%</span>
+          </div>
+          <div class="prob-bar-wrap">
+            <span style="font-size:12px;color:var(--rep-dark);min-width:110px;">McCormick (R)</span>
+            <div class="prob-bar"><div style="height:100%;width:48%;background:var(--rep);border-radius:999px;"></div></div>
+            <span class="prob-pct rep">48%</span>
+          </div>
+          <div class="race-footer">
+            <span class="updated"><i class="ti ti-clock" style="font-size:12px"></i> 2h ago</span>
+            <span class="trend up"><i class="ti ti-trending-up" style="font-size:12px"></i> D +1.4 (7d)</span>
+            <span class="view-btn">Details <i class="ti ti-arrow-right" style="font-size:12px"></i></span>
+          </div>
+        </div>
+
+        <!-- Primary card (D) — pie chart layout -->
+        <div class="race-card">
+          <div class="race-header">
+            <div><div class="race-title">Michigan 8th — House</div><div class="race-sub">D primary · 4 candidates</div></div>
+            <div class="race-badges"><span class="badge badge-house">House</span><span class="badge badge-primary-d">D primary</span></div>
+          </div>
+          <div class="pie-row">
+            <canvas id="pie-mi8" width="52" height="52" aria-label="Primary probability pie chart"></canvas>
+            <div class="pie-legend">
+              <div class="pie-legend-item"><span class="pie-dot" style="background:#185FA5"></span><span class="pie-cand">Chen</span><span class="pie-pct">38%</span></div>
+              <div class="pie-legend-item"><span class="pie-dot" style="background:#378ADD"></span><span class="pie-cand">Alvarez</span><span class="pie-pct">29%</span></div>
+              <div class="pie-legend-item"><span class="pie-dot" style="background:#85B7EB"></span><span class="pie-cand">Washington</span><span class="pie-pct">21%</span></div>
+              <div class="pie-legend-item"><span class="pie-dot" style="background:#B5D4F4"></span><span class="pie-cand">Other</span><span class="pie-pct">12%</span></div>
+            </div>
+          </div>
+          <div class="race-footer">
+            <span class="updated"><i class="ti ti-clock" style="font-size:12px"></i> 1d ago</span>
+            <span style="font-size:11px;color:var(--text3);">Primary: Aug 4</span>
+            <span class="view-btn">Details <i class="ti ti-arrow-right" style="font-size:12px"></i></span>
+          </div>
+        </div>
+
+        <!-- Primary card (R) -->
+        <div class="race-card">
+          <div class="race-header">
+            <div><div class="race-title">Arizona Governor</div><div class="race-sub">R primary · 3 candidates</div></div>
+            <div class="race-badges"><span class="badge badge-gov">Governor</span><span class="badge badge-primary-r">R primary</span></div>
+          </div>
+          <div class="pie-row">
+            <canvas id="pie-az-gov" width="52" height="52" aria-label="Primary probability pie chart"></canvas>
+            <div class="pie-legend">
+              <div class="pie-legend-item"><span class="pie-dot" style="background:#993C1D"></span><span class="pie-cand">Hamadeh</span><span class="pie-pct">47%</span></div>
+              <div class="pie-legend-item"><span class="pie-dot" style="background:#D85A30"></span><span class="pie-cand">Gosar</span><span class="pie-pct">31%</span></div>
+              <div class="pie-legend-item"><span class="pie-dot" style="background:#F0997B"></span><span class="pie-cand">Hoffman</span><span class="pie-pct">22%</span></div>
+            </div>
+          </div>
+          <div class="race-footer">
+            <span class="updated"><i class="ti ti-clock" style="font-size:12px"></i> 5h ago</span>
+            <span style="font-size:11px;color:var(--text3);">Primary: Aug 25</span>
+            <span class="view-btn">Details <i class="ti ti-arrow-right" style="font-size:12px"></i></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAST ELECTIONS TAB -->
+      <div id="past-tab" class="tab-content">
+        <div class="section-header">
+          <span class="section-title">Past elections — model accuracy</span>
+        </div>
+        <div class="race-card">
+          <div class="race-header">
+            <div><div class="race-title">Georgia Senate 2022</div><div class="race-sub">Warnock (D) def. Walker (R) · Dec 6, 2022</div></div>
+            <div class="race-badges"><span class="badge badge-senate">Senate</span><span class="outcome-badge outcome-dem">D won</span></div>
+          </div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:6px;">Model probability on election eve</div>
+          <div class="prob-bar-wrap">
+            <span style="font-size:12px;color:var(--dem-dark);min-width:110px;">Warnock (D)</span>
+            <div class="prob-bar"><div style="height:100%;width:63%;background:var(--dem);border-radius:999px;"></div></div>
+            <span class="prob-pct dem">63%</span>
+          </div>
+          <div class="prob-bar-wrap">
+            <span style="font-size:12px;color:var(--rep-dark);min-width:110px;">Walker (R)</span>
+            <div class="prob-bar"><div style="height:100%;width:37%;background:var(--rep);border-radius:999px;"></div></div>
+            <span class="prob-pct rep">37%</span>
+          </div>
+          <div class="race-footer">
+            <span style="font-size:11px;color:#3B6D11;display:flex;align-items:center;gap:4px;"><i class="ti ti-check" style="font-size:12px"></i> Correct call</span>
+            <span style="font-size:11px;color:var(--text3);">D +2.8 actual vs D +3.1 model</span>
+            <!-- NOTE FOR CODE AGENT: "History" opens same detail view, but data is frozen to election-eve snapshot -->
+            <span class="view-btn">History <i class="ti ti-arrow-right" style="font-size:12px"></i></span>
+          </div>
+        </div>
+        <div class="race-card">
+          <div class="race-header">
+            <div><div class="race-title">Nevada Governor 2022</div><div class="race-sub">Lombardo (R) def. Sisolak (D) · Nov 8, 2022</div></div>
+            <div class="race-badges"><span class="badge badge-gov">Governor</span><span class="outcome-badge outcome-rep">R won</span></div>
+          </div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:6px;">Model probability on election eve</div>
+          <div class="prob-bar-wrap">
+            <span style="font-size:12px;color:var(--dem-dark);min-width:110px;">Sisolak (D)</span>
+            <div class="prob-bar"><div style="height:100%;width:48%;background:var(--dem);border-radius:999px;"></div></div>
+            <span class="prob-pct dem">48%</span>
+          </div>
+          <div class="prob-bar-wrap">
+            <span style="font-size:12px;color:var(--rep-dark);min-width:110px;">Lombardo (R)</span>
+            <div class="prob-bar"><div style="height:100%;width:52%;background:var(--rep);border-radius:999px;"></div></div>
+            <span class="prob-pct rep">52%</span>
+          </div>
+          <div class="race-footer">
+            <span style="font-size:11px;color:#3B6D11;display:flex;align-items:center;gap:4px;"><i class="ti ti-check" style="font-size:12px"></i> Correct call</span>
+            <span style="font-size:11px;color:var(--text3);">R +1.5 actual vs R +0.8 model</span>
+            <span class="view-btn">History <i class="ti ti-arrow-right" style="font-size:12px"></i></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ACCURACY DASHBOARD TAB -->
+      <div id="accuracy-tab" class="tab-content">
+        <div class="section-header">
+          <span class="section-title">Model accuracy — how well we call winners</span>
+          <span style="font-size:11px;color:var(--text3);">Evaluated on election-eve forecasts</span>
+        </div>
+
+        <!-- Accuracy filters -->
+        <div class="acc-filters">
+          <span class="filter-label">Year</span>
+          <span class="chip active" data-group="year" data-val="all" onclick="setAccFilter(this)">All</span>
+          <span class="chip" data-group="year" data-val="2020" onclick="setAccFilter(this)">2020</span>
+          <span class="chip" data-group="year" data-val="2021" onclick="setAccFilter(this)">2021</span>
+          <span class="chip" data-group="year" data-val="2022" onclick="setAccFilter(this)">2022</span>
+          <span class="chip" data-group="year" data-val="2023" onclick="setAccFilter(this)">2023</span>
+          <span class="chip" data-group="year" data-val="2024" onclick="setAccFilter(this)">2024</span>
+          <div style="width:1px;height:16px;background:var(--border);margin:0 2px;"></div>
+          <span class="filter-label">Race</span>
+          <span class="chip active" data-group="office" data-val="all" onclick="setAccFilter(this)">All</span>
+          <span class="chip" data-group="office" data-val="Governor" onclick="setAccFilter(this)"><i class="ti ti-building" style="font-size:12px"></i> Governor</span>
+          <span class="chip" data-group="office" data-val="Senate" onclick="setAccFilter(this)"><i class="ti ti-podium" style="font-size:12px"></i> Senate</span>
+          <span class="chip" data-group="office" data-val="House" onclick="setAccFilter(this)"><i class="ti ti-users" style="font-size:12px"></i> House</span>
+          <div style="width:1px;height:16px;background:var(--border);margin:0 2px;"></div>
+          <span class="filter-label">Election</span>
+          <span class="chip active" data-group="etype" data-val="all" onclick="setAccFilter(this)">All</span>
+          <span class="chip" data-group="etype" data-val="General" onclick="setAccFilter(this)">General</span>
+          <span class="chip" data-group="etype" data-val="Primary" onclick="setAccFilter(this)">Primary</span>
+          <div style="width:1px;height:16px;background:var(--border);margin:0 2px;"></div>
+          <span class="filter-label">State</span>
+          <select class="acc-select" id="acc-state"><option value="all">All states</option></select>
+        </div>
+
+        <div id="acc-content" style="display:flex;flex-direction:column;gap:10px;">
+          <!-- KPI cards -->
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-label"><i class="ti ti-target-arrow" style="font-size:13px"></i> Winners called</div>
+              <div class="kpi-val good" id="acc-kpi-correct">—</div>
+              <div class="kpi-sub" id="acc-kpi-correct-sub">—</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label"><i class="ti ti-list-check" style="font-size:13px"></i> Races evaluated</div>
+              <div class="kpi-val" id="acc-kpi-n">—</div>
+              <div class="kpi-sub" id="acc-kpi-n-sub">—</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label"><i class="ti ti-math-function" style="font-size:13px"></i> Brier score</div>
+              <div class="kpi-val" id="acc-kpi-brier">—</div>
+              <div class="kpi-sub">Lower is better · 0.25 = coin flip</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label"><i class="ti ti-ruler-measure" style="font-size:13px"></i> Avg. margin error</div>
+              <div class="kpi-val" id="acc-kpi-margin">—</div>
+              <div class="kpi-sub">Model margin vs. actual result</div>
+            </div>
+          </div>
+
+          <!-- Calibration chart -->
+          <div class="chart-card">
+            <div class="chart-card-title">Calibration — do our probabilities mean what they say?</div>
+            <div class="chart-card-sub">When the model says a favorite has 70% odds, that favorite should win ~70% of the time. Bars = actual win rate; dashed line = perfect calibration.</div>
+            <canvas id="acc-cal-chart" height="120" aria-label="Calibration chart"></canvas>
+          </div>
+
+          <!-- Breakdown charts -->
+          <div class="chart-grid">
+            <div class="chart-card">
+              <div class="chart-card-title">Accuracy by year</div>
+              <div class="chart-card-sub">% of races where the favorite won</div>
+              <canvas id="acc-year-chart" height="160" aria-label="Accuracy by year"></canvas>
+            </div>
+            <div class="chart-card">
+              <div class="chart-card-title">Accuracy by race type</div>
+              <div class="chart-card-sub">% of races where the favorite won</div>
+              <canvas id="acc-office-chart" height="160" aria-label="Accuracy by race type"></canvas>
+            </div>
+          </div>
+
+          <!-- Biggest misses -->
+          <div class="chart-card">
+            <div class="chart-card-title">Biggest misses</div>
+            <div class="chart-card-sub">Wrong calls where the model was most confident</div>
+            <table class="data-table">
+              <thead><tr><th>Race</th><th>Year</th><th>Election</th><th>Model favored</th><th>Confidence</th><th>Outcome</th></tr></thead>
+              <tbody id="acc-miss-body"></tbody>
+            </table>
+            <div id="acc-no-miss" style="display:none;font-size:12px;color:var(--text3);padding:8px 0;">No wrong calls in this selection 🎯</div>
+          </div>
+        </div>
+
+        <div class="acc-empty" id="acc-empty" style="display:none;">
+          <i class="ti ti-filter-off" style="font-size:18px;"></i><br/>
+          No past races match these filters. Try widening the selection.
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /list-view -->
+
+
+<!-- ══════════════════════════════════════
+     DETAIL VIEW — PA Senate (example)
+     NOTE FOR CODE AGENT:
+       - This is a template for general election detail.
+       - For PRIMARIES: hide the "Party lean" tab.
+       - For PAST elections: show frozen data + post-mortem comparison.
+         The probability chart should show the full historical curve
+         with a vertical "election day" marker, and the data tabs
+         should show the election-eve snapshot data (read-only).
+     ══════════════════════════════════════ -->
+<div class="detail-view" id="detail-view">
+
+  <div class="detail-topbar">
+    <button class="back-btn" onclick="closeDetail()"><i class="ti ti-arrow-left"></i> All races</button>
+    <span style="color:var(--border2);font-size:16px;">|</span>
+    <span style="font-size:15px;font-weight:500;">Pennsylvania Senate 2026</span>
+    <span class="badge badge-senate" style="margin-left:4px;">Senate</span>
+    <span class="badge badge-general" style="margin-left:4px;">General</span>
+    <span class="badge badge-toss" style="margin-left:4px;">Toss-up</span>
+    <span style="margin-left:auto;font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px;"><i class="ti ti-clock" style="font-size:12px"></i> Updated 2h ago</span>
+  </div>
+
+  <div class="detail-body">
+
+    <!-- LEFT: summary always visible -->
+    <div class="left-panel">
+      <div class="prob-summary">
+        <div class="prob-summary-title">Win probability</div>
+        <div class="candidate-block">
+          <div><div class="cand-name">Bob Casey</div><div class="cand-party">Democratic</div></div>
+          <span class="cand-prob dem">52%</span>
+        </div>
+        <div class="candidate-block">
+          <div><div class="cand-name">Dave McCormick</div><div class="cand-party">Republican</div></div>
+          <span class="cand-prob rep">48%</span>
+        </div>
+        <div class="prob-bar-bicolor">
+          <div class="prob-fill-dem" style="width:52%"></div>
+          <div class="prob-fill-rep" style="width:48%"></div>
+        </div>
+        <div class="prob-bar-labels"><span>Casey</span><span>McCormick</span></div>
+      </div>
+
+      <!-- Model inputs summary -->
+      <div class="mini-section">
+        <div class="mini-section-title">Model inputs</div>
+        <div class="model-row"><span class="model-row-name">Polling avg</span><span class="model-row-val pos">D +1.8</span></div>
+        <div class="model-row"><span class="model-row-name">Fundraising</span><span class="model-row-val pos">D +$4.2M</span></div>
+        <div class="model-row"><span class="model-row-name">Endorsements</span><span class="model-row-val pos">D +18 pts</span></div>
+        <div class="model-row"><span class="model-row-name">Party lean</span><span class="model-row-val neutral">R +1.2</span></div>
+        <div class="model-row"><span class="model-row-name">Incumbency</span><span class="model-row-val pos">D +3.0</span></div>
+        <div class="model-row"><span class="model-row-name">Generic ballot</span><span class="model-row-val neutral">EVEN</span></div>
+      </div>
+
+      <!-- 7-day trend -->
+      <div class="mini-section">
+        <div class="mini-section-title">7-day trend</div>
+        <div class="model-row"><span class="model-row-name">Casey (D)</span><span class="model-row-val pos">+1.4 pts</span></div>
+        <div class="model-row"><span class="model-row-name">McCormick (R)</span><span class="model-row-val neg">−1.4 pts</span></div>
+        <div class="model-row"><span class="model-row-name">Last updated</span><span class="model-row-val neutral">May 30</span></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: chart + tabs -->
+    <div class="right-panel">
+
+      <!-- Probability timeline -->
+      <div class="chart-area">
+        <div class="chart-area-header">
+          <span class="chart-area-title">Win probability over time</span>
+          <div class="time-btns">
+            <button class="time-btn">1M</button>
+            <button class="time-btn active">3M</button>
+            <button class="time-btn">6M</button>
+            <button class="time-btn">All</button>
+          </div>
+        </div>
+        <canvas id="prob-chart" height="130" aria-label="Probability timeline"></canvas>
+        <div class="chart-legend">
+          <div class="chart-legend-item"><div class="chart-legend-line" style="background:var(--dem)"></div> Casey (D)</div>
+          <div class="chart-legend-item"><div class="chart-legend-line" style="background:var(--rep)"></div> McCormick (R)</div>
+          <div class="chart-legend-item"><div class="chart-legend-dot" style="background:#3C3489"></div> Endorsement</div>
+          <div class="chart-legend-item"><div class="chart-legend-dot" style="background:var(--dem-dark)"></div> New poll</div>
+          <div class="chart-legend-item"><div class="chart-legend-dot" style="background:#3B6D11"></div> Fundraising</div>
+        </div>
+        <div class="events-list">
+          <div class="event-row">
+            <div class="event-dot-sm" style="background:var(--dem-dark)"></div>
+            <span class="event-date">May 27</span>
+            <span class="event-desc">Quinnipiac poll: Casey +2 — strongest D poll in 6 weeks</span>
+            <span class="event-tag tag-poll">Poll</span>
+          </div>
+          <div class="event-row">
+            <div class="event-dot-sm" style="background:#3B6D11"></div>
+            <span class="event-date">May 15</span>
+            <span class="event-desc">Q1 FEC filings: Casey outraised McCormick $8.4M to $5.1M</span>
+            <span class="event-tag tag-fund">Fundraising</span>
+          </div>
+          <div class="event-row">
+            <div class="event-dot-sm" style="background:#3C3289"></div>
+            <span class="event-date">Apr 3</span>
+            <span class="event-desc">AFL-CIO endorses Casey — highest-tier labor endorsement in race</span>
+            <span class="event-tag tag-endorse">Endorsement</span>
+          </div>
+          <div class="event-row">
+            <div class="event-dot-sm" style="background:var(--rep-dark)"></div>
+            <span class="event-date">Mar 20</span>
+            <span class="event-desc">Trafalgar poll: McCormick +5 — outlier, low model weight applied</span>
+            <span class="event-tag tag-poll">Poll</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Data tabs -->
+      <!-- NOTE FOR CODE AGENT: hide "Party lean" tab when race.type === 'primary' -->
+      <div class="data-tabs">
+        <button class="data-tab active" onclick="switchDataTab('polls', this)"><i class="ti ti-clipboard-list" style="font-size:13px;vertical-align:-2px;margin-right:4px"></i>Polls</button>
+        <button class="data-tab" onclick="switchDataTab('endorse', this)"><i class="ti ti-star" style="font-size:13px;vertical-align:-2px;margin-right:4px"></i>Endorsements</button>
+        <button class="data-tab" onclick="switchDataTab('fund', this)"><i class="ti ti-cash" style="font-size:13px;vertical-align:-2px;margin-right:4px"></i>Fundraising</button>
+        <button class="data-tab" onclick="switchDataTab('lean', this)"><i class="ti ti-map-2" style="font-size:13px;vertical-align:-2px;margin-right:4px"></i>Party lean</button>
+      </div>
+
+      <!-- Polls panel -->
+      <div id="polls-panel" class="data-panel active">
+        <table class="data-table">
+          <thead><tr><th>Pollster</th><th>Date</th><th>Grade</th><th>Casey (D)</th><th>McCormick (R)</th><th>Spread</th><th>Weight</th></tr></thead>
+          <tbody>
+            <tr><td>Quinnipiac</td><td style="color:var(--text2)">May 27</td><td><span class="poll-grade grade-a">A</span></td><td>48%</td><td>46%</td><td><span class="spread-dem">D +2</span></td><td><div class="weight-bar"><div class="weight-fill" style="width:88%"></div></div></td></tr>
+            <tr><td>Franklin & Marshall</td><td style="color:var(--text2)">May 22</td><td><span class="poll-grade grade-a">A−</span></td><td>47%</td><td>46%</td><td><span class="spread-dem">D +1</span></td><td><div class="weight-bar"><div class="weight-fill" style="width:82%"></div></div></td></tr>
+            <tr><td>Emerson</td><td style="color:var(--text2)">May 18</td><td><span class="poll-grade grade-b">B+</span></td><td>46%</td><td>47%</td><td><span class="spread-rep">R +1</span></td><td><div class="weight-bar"><div class="weight-fill" style="width:68%"></div></div></td></tr>
+            <tr><td>Muhlenberg</td><td style="color:var(--text2)">May 10</td><td><span class="poll-grade grade-a">A</span></td><td>49%</td><td>46%</td><td><span class="spread-dem">D +3</span></td><td><div class="weight-bar"><div class="weight-fill" style="width:61%"></div></div></td></tr>
+            <tr><td>Trafalgar</td><td style="color:var(--text2)">May 5</td><td><span class="poll-grade grade-c">C</span></td><td>44%</td><td>49%</td><td><span class="spread-rep">R +5</span></td><td><div class="weight-bar"><div class="weight-fill" style="width:32%"></div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Endorsements panel -->
+      <div id="endorse-panel" class="data-panel">
+        <table class="data-table">
+          <thead><tr><th>Endorser</th><th>Tier</th><th>Date</th><th>Candidate</th><th>Weight</th></tr></thead>
+          <tbody>
+            <tr><td>AFL-CIO</td><td><span class="endorse-tier tier-nat">National</span></td><td style="color:var(--text2)">Apr 3</td><td style="color:var(--dem-dark);font-weight:500">Casey (D)</td><td><div class="weight-bar"><div class="weight-fill" style="width:90%"></div></div></td></tr>
+            <tr><td>PA State Education Assoc.</td><td><span class="endorse-tier tier-state">State</span></td><td style="color:var(--text2)">Mar 18</td><td style="color:var(--dem-dark);font-weight:500">Casey (D)</td><td><div class="weight-bar"><div class="weight-fill" style="width:72%"></div></div></td></tr>
+            <tr><td>Philadelphia Inquirer</td><td><span class="endorse-tier tier-state">State</span></td><td style="color:var(--text2)">Mar 5</td><td style="color:var(--dem-dark);font-weight:500">Casey (D)</td><td><div class="weight-bar"><div class="weight-fill" style="width:55%"></div></div></td></tr>
+            <tr><td>PA Farm Bureau</td><td><span class="endorse-tier tier-state">State</span></td><td style="color:var(--text2)">Feb 22</td><td style="color:var(--rep-dark);font-weight:500">McCormick (R)</td><td><div class="weight-bar"><div class="weight-fill" style="width:60%"></div></div></td></tr>
+            <tr><td>Club for Growth</td><td><span class="endorse-tier tier-nat">National</span></td><td style="color:var(--text2)">Feb 10</td><td style="color:var(--rep-dark);font-weight:500">McCormick (R)</td><td><div class="weight-bar"><div class="weight-fill" style="width:75%"></div></div></td></tr>
+            <tr><td>Pittsburgh Building Trades</td><td><span class="endorse-tier tier-local">Local</span></td><td style="color:var(--text2)">Jan 30</td><td style="color:var(--dem-dark);font-weight:500">Casey (D)</td><td><div class="weight-bar"><div class="weight-fill" style="width:38%"></div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Fundraising panel -->
+      <div id="fund-panel" class="data-panel">
+        <table class="data-table">
+          <thead><tr><th>Period</th><th>Casey (D)</th><th>McCormick (R)</th><th>Cash on hand</th><th>Breakdown</th></tr></thead>
+          <tbody>
+            <tr><td style="font-weight:500">Q1 2026</td><td style="color:var(--dem-dark);font-weight:500">$8.4M</td><td style="color:var(--rep-dark);font-weight:500">$5.1M</td><td style="color:var(--text2)">D +$3.3M</td><td><div class="fund-bar"><div class="fund-fill-dem" style="width:62%"></div></div></td></tr>
+            <tr><td style="font-weight:500">Q4 2025</td><td style="color:var(--dem-dark);font-weight:500">$6.2M</td><td style="color:var(--rep-dark);font-weight:500">$5.8M</td><td style="color:var(--text2)">D +$0.4M</td><td><div class="fund-bar"><div class="fund-fill-dem" style="width:52%"></div></div></td></tr>
+            <tr><td style="font-weight:500">Q3 2025</td><td style="color:var(--dem-dark);font-weight:500">$4.8M</td><td style="color:var(--rep-dark);font-weight:500">$6.3M</td><td style="color:var(--text2)">R +$1.5M</td><td><div class="fund-bar"><div class="fund-fill-rep" style="width:57%"></div></div></td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:10px;border-top:0.5px solid var(--border);padding-top:10px;">
+          <div style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.06em;color:var(--text3);margin-bottom:8px;">Total cycle raised</div>
+          <div style="display:flex;align-items:center;gap:16px;">
+            <div style="flex:1"><div style="font-size:12px;color:var(--dem-dark);margin-bottom:3px;">Casey (D) — $19.4M</div><div style="height:10px;border-radius:999px;background:var(--surface2);overflow:hidden;"><div style="height:100%;width:57%;background:var(--dem);border-radius:999px;"></div></div></div>
+            <div style="flex:1"><div style="font-size:12px;color:var(--rep-dark);margin-bottom:3px;">McCormick (R) — $17.2M</div><div style="height:10px;border-radius:999px;background:var(--surface2);overflow:hidden;"><div style="height:100%;width:43%;background:var(--rep);border-radius:999px;"></div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Party lean panel — GENERAL ELECTIONS ONLY -->
+      <!--
+        NOTE FOR CODE AGENT:
+        Hide this tab entirely for primary races.
+        The model decomposition factor rows are clickable — show a tooltip
+        explaining how each factor is calculated. Tooltip positioning:
+        use getBoundingClientRect() + scroll offset, render tooltip as
+        position:absolute inside a positioned ancestor (not fixed).
+      -->
+      <div id="lean-panel" class="data-panel" style="position:relative;">
+        <div id="factor-tooltip" class="tooltip-box"></div>
+
+        <div class="lean-card">
+          <div class="lean-card-title">Structural party lean — Pennsylvania statewide</div>
+          <div style="display:flex;height:14px;border-radius:999px;overflow:hidden;margin-bottom:6px;">
+            <div style="width:47%;background:var(--dem)"></div>
+            <div style="width:53%;background:var(--rep)"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;">
+            <span style="color:var(--dem-dark)">D 47%</span><span style="color:var(--rep-dark)">R 53%</span>
+          </div>
+          <div class="lean-note">Based on 2020–2024 presidential results, adjusted for midterm patterns. Structural lean favors R by 1.2 pts before candidate effects.</div>
+        </div>
+
+        <div class="lean-card">
+          <div class="lean-card-title">Model decomposition — click a factor to learn more</div>
+          <div class="factor-row" onclick="showTooltip(event,'incumbency')">
+            <span class="factor-label" style="color:var(--dem-dark)">Incumbency boost</span>
+            <div class="lean-bar"><div style="height:100%;width:75%;background:var(--dem);border-radius:999px;"></div></div>
+            <span class="factor-pct" style="color:var(--dem-dark)">+3.0 pts</span>
+            <i class="ti ti-info-circle" style="font-size:13px;color:var(--text3)"></i>
+          </div>
+          <div class="factor-row" onclick="showTooltip(event,'fundraising')">
+            <span class="factor-label" style="color:var(--text2)">Fundraising edge</span>
+            <div class="lean-bar"><div style="height:100%;width:55%;background:var(--dem);border-radius:999px;"></div></div>
+            <span class="factor-pct" style="color:var(--dem-dark)">+1.4 pts</span>
+            <i class="ti ti-info-circle" style="font-size:13px;color:var(--text3)"></i>
+          </div>
+          <div class="factor-row" onclick="showTooltip(event,'endorsements')">
+            <span class="factor-label" style="color:var(--text2)">Endorsements</span>
+            <div class="lean-bar"><div style="height:100%;width:45%;background:var(--dem);border-radius:999px;"></div></div>
+            <span class="factor-pct" style="color:var(--dem-dark)">+1.1 pts</span>
+            <i class="ti ti-info-circle" style="font-size:13px;color:var(--text3)"></i>
+          </div>
+          <div class="factor-row" onclick="showTooltip(event,'structural')">
+            <span class="factor-label" style="color:var(--text2)">Structural lean</span>
+            <div class="lean-bar"><div style="height:100%;width:48%;background:var(--rep);border-radius:999px;"></div></div>
+            <span class="factor-pct" style="color:var(--rep-dark)">−1.2 pts</span>
+            <i class="ti ti-info-circle" style="font-size:13px;color:var(--text3)"></i>
+          </div>
+          <div class="factor-row" onclick="showTooltip(event,'generic')">
+            <span class="factor-label" style="color:var(--text2)">Generic ballot</span>
+            <div class="lean-bar"><div style="height:100%;width:25%;background:#888780;border-radius:999px;"></div></div>
+            <span class="factor-pct" style="color:var(--text2)">0.0 pts</span>
+            <i class="ti ti-info-circle" style="font-size:13px;color:var(--text3)"></i>
+          </div>
+          <div class="lean-note" style="margin-top:8px;">Net: D +4.3 candidate effect overcomes R +1.2 structural lean → Casey at 52%</div>
+        </div>
+
+        <div class="lean-card">
+          <div class="lean-card-title">Historical presidential results — Pennsylvania</div>
+          <table class="data-table">
+            <thead><tr><th>Year</th><th>Dem</th><th>Rep</th><th>Margin</th></tr></thead>
+            <tbody>
+              <tr><td>2024</td><td>48.2%</td><td>50.9%</td><td><span class="spread-rep">R +2.7</span></td></tr>
+              <tr><td>2020</td><td>50.0%</td><td>48.8%</td><td><span class="spread-dem">D +1.2</span></td></tr>
+              <tr><td>2016</td><td>47.5%</td><td>48.2%</td><td><span class="spread-rep">R +0.7</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /right-panel -->
+  </div><!-- /detail-body -->
+</div><!-- /detail-view -->
+
+</div><!-- /app -->
+
+<script>
+// ── Tab switching (list view) ──────────────
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(name + '-tab').classList.add('active');
+  btn.classList.add('active');
+  // Accuracy page: full-width layout, hide race filter bar, render charts
+  const isAcc = name === 'accuracy';
+  document.querySelector('.main').classList.toggle('full', isAcc);
+  document.getElementById('race-filters').style.display = isAcc ? 'none' : 'flex';
+  if (isAcc) renderAccuracy();
+}
+
+// ── Detail view nav ────────────────────────
+function openDetail(raceId) {
+  document.getElementById('list-view').classList.add('hidden');
+  document.getElementById('detail-view').classList.add('active');
+  drawProbChart();
+}
+function closeDetail() {
+  document.getElementById('list-view').classList.remove('hidden');
+  document.getElementById('detail-view').classList.remove('active');
+}
+
+// ── Data tab switching (detail view) ───────
+function switchDataTab(name, btn) {
+  document.querySelectorAll('.data-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.data-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(name + '-panel').classList.add('active');
+  btn.classList.add('active');
+}
+
+// ── Factor tooltips ─────────────────────────
+const tooltipData = {
+  incumbency:   { title: 'Incumbency boost', body: 'Sitting senators historically gain ~3 pts above their structural baseline. Modeled from Senate incumbency advantage 2000–2022.' },
+  fundraising:  { title: 'Fundraising edge', body: 'Cash-on-hand differential converted to probability points using a log-scale regression on competitive Senate races 2014–2022.' },
+  endorsements: { title: 'Endorsements', body: 'Weighted endorsement score (national > state > local). Score differential mapped to expected vote-share shift via historical backtesting.' },
+  structural:   { title: 'Structural lean', body: 'Composite of 2020 and 2024 presidential results in the state, weighted 60/40, adjusted for midterm vs. presidential turnout.' },
+  generic:      { title: 'Generic ballot', body: 'National generic congressional ballot average. Currently near even, contributing no net advantage. Updates weekly from aggregated polls.' },
+};
+let tooltipVisible = false;
+function showTooltip(e, key) {
+  const tip = document.getElementById('factor-tooltip');
+  const data = tooltipData[key];
+  tip.innerHTML = `<div class="tooltip-title">${data.title}</div>${data.body}`;
+  const panel = document.getElementById('lean-panel');
+  const panelRect = panel.getBoundingClientRect();
+  const rowRect = e.currentTarget.getBoundingClientRect();
+  const top = rowRect.top - panelRect.top + panel.scrollTop + rowRect.height + 4;
+  const left = rowRect.left - panelRect.left;
+  tip.style.top = top + 'px';
+  tip.style.left = left + 'px';
+  tip.classList.add('visible');
+  tooltipVisible = true;
+  e.stopPropagation
